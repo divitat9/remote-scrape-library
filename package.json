@@ -1,0 +1,26 @@
+{
+  "name": "remote-scrape-library",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@azure/msal-node": "^1.17.3",
+    "@originjs/crypto-js-wasm": "^1.1.0",
+    "axios": "^1.4.0",
+    "express": "^4.18.2",
+    "googleapis": "^118.0.0",
+    "node-fetch": "^2.6.1",
+    "node-localstorage": "^2.2.1",
+    "opn": "^6.0.0",
+    "path": "^0.12.7",
+    "server-destroy": "^1.0.1",
+    "store2": "^2.14.2",
+    "web-vitals": "^2.1.4"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
