@@ -1,7 +1,7 @@
 import express from 'express';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import createJob from './createJob.js';
-import globals from './globals.js';
+import encryptCreds from './encryptCreds.js';
 
 class OutlookOAuth {
   constructor(config) {
@@ -38,9 +38,7 @@ class OutlookOAuth {
 
     try {
       const response = await this.pca.acquireTokenByCode(tokenRequest);
-      globals.setProvider("outlook-oauth");
-      globals.setOAuth(response.accessToken);
-      await globals.encryptCredential("outlook-oauth");
+      await encryptCreds.encryptCredential(response.accessToken);
       await createJob("outlook-oauth");
       res.status(200).json({ message: "Outlook OAuth authentication and job creation successful!" });
     } catch (error) {

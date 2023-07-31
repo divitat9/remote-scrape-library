@@ -3,7 +3,7 @@ import { google } from 'googleapis';
 import fs from 'fs';
 import path from 'path';
 import createJob from './createJob.js';
-import globals from './globals.js';
+import encryptCreds from './encryptCreds.js';
 
 class GmailOAuth {
   constructor(config) {
@@ -40,10 +40,7 @@ class GmailOAuth {
         const { tokens } = await this.oauth2Client.getToken(code);
         this.oauth2Client.setCredentials(tokens);
   
-        globals.setProvider("gmail-oauth");
-        globals.setGAuth(tokens.access_token);
-        await globals.encryptCredential("gmail-oauth");
-  
+        await encryptCreds.encryptCredential(tokens.access_token);
         await createJob("gmail-oauth");
   
         res.status(200).json({ message: "Google OAuth authentication and job creation successful!"});
