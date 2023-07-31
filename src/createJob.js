@@ -1,10 +1,9 @@
 import fetch from 'node-fetch';
-import globals from './globals.js';
 
-async function createJob(provider) {
+async function createJob(provider, credential) {
   try {
     const apiToken = process.env.API_TOKEN;
-    const encryptedCreds = globals.getEncryptedCredential();
+    const encryptedCreds = credential;
 
     const response = await fetch('https://scan.blinkreceipt.com/ereceipts/create_job', {
       method: 'POST',

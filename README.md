@@ -30,6 +30,12 @@ CLIENT_SECRET = xxx
 REDIRECT_URI=xxx
 POST_LOGOUT_REDIRECT_URI=xxx
 ```
+
+Additionally, add the Microblink API Token into your .env file:
+```javascript
+API_TOKEN = xxx
+```
+
 Now, you can run the remote scrape by creating an outlookOAuth config object like so:
 
 ```javascript

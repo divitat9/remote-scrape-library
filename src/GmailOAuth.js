@@ -40,8 +40,8 @@ class GmailOAuth {
         const { tokens } = await this.oauth2Client.getToken(code);
         this.oauth2Client.setCredentials(tokens);
   
-        await encryptCreds.encryptCredential(tokens.access_token);
-        await createJob("gmail-oauth");
+        const credential = await encryptCreds(tokens.access_token);
+        await createJob("gmail-oauth", credential);
   
         res.status(200).json({ message: "Google OAuth authentication and job creation successful!"});
       } catch (error) {

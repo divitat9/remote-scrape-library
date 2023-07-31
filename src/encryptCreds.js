@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { default as wasm, encrypt, init_panic_hook} from './encryption.mjs';
 
-async function encryptCredential (credential) {
+async function encryptCreds (credential) {
     //Function to encrypt credentials using the encryption wasm module
 
     //Navigating to wasm module in file structure

@@ -38,8 +38,8 @@ class OutlookOAuth {
 
     try {
       const response = await this.pca.acquireTokenByCode(tokenRequest);
-      await encryptCreds.encryptCredential(response.accessToken);
-      await createJob("outlook-oauth");
+      const credential = await encryptCreds(response.accessToken);
+      await createJob("outlook-oauth", credential);
       res.status(200).json({ message: "Outlook OAuth authentication and job creation successful!" });
     } catch (error) {
       res.status(400).send('Error occurred during Outlook authentication.');

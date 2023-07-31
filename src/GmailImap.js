@@ -11,8 +11,8 @@ class GmailImap {
     const { email, password } = this.config;
 
     try {
-      await encryptCreds.encryptCredential(email + ":" + password);
-      await createJob("gmail-imap");
+      const credential = await encryptCreds(email + ":" + password);
+      await createJob("gmail-imap", credential);
 
       // Return 200 to indicate success
       return 200;
