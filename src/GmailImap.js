@@ -1,5 +1,6 @@
 import createJob from './createJob.js';
-import globals from './globals.js';
+import encryptCreds from './encryptCreds.js';
+
 
 class GmailImap {
   constructor(config) {
@@ -9,11 +10,8 @@ class GmailImap {
   async initialize() {
     const { email, password } = this.config;
 
-    globals.setProvider("gmail-imap");
-    globals.setImap(email + ":" + password);
-
     try {
-      await globals.encryptCredential("gmail-imap");
+      await encryptCreds.encryptCredential(email + ":" + password);
       await createJob("gmail-imap");
 
       // Return 200 to indicate success
