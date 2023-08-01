@@ -27,3 +27,5 @@ async function encryptCreds (credential) {
 
     return encryptedCredential;
 }
+
+export default encryptCreds;
