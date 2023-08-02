@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-async function createJob(provider, credential) {
+async function createJob(provider, credential, userId) {
   try {
     const apiToken = process.env.API_TOKEN;
     const encryptedCreds = credential;
@@ -14,7 +14,8 @@ async function createJob(provider, credential) {
       },
       body: new URLSearchParams({
         'credentials': encryptedCreds,
-        'provider': provider
+        'provider': provider,
+        'client_user_id': userId,
       })
     });
 
