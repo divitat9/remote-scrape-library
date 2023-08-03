@@ -36,33 +36,95 @@ Additionally, add the Microblink API Token into your .env file:
 API_TOKEN = xxx
 ```
 
-Now, you can run the remote scrape by creating an outlookOAuth config object like so:
+If you are creating a server-side application, you can create a Outlook auth flow similar to this:
 
 ```javascript
+class OutlookOAuth {
+  constructor(app, config) {
+    this.config = config;
+    this.app = app;
+    this.cca = new ConfidentialClientApplication(this.config.msalConfig);
+    this.success_url = this.config.success_url;
+  }
+
+  setupRoutes() {
+    this.app.get(this.config.authRoute, this.outlookAuthHandler.bind(this));
+    this.app.get(this.config.callbackRoute, this.outlookAuthCallbackHandler.bind(this));
+  }
+
+  // Route handler for Outlook that redirects user to auth URL generated with CCA
+  async outlookAuthHandler(req, res) {
+    const authCodeUrlParameters = {
+      scopes: this.config.scopes,
+      redirectUri: this.config.redirectUri,
+    };
+    try {
+      const response = await this.cca.getAuthCodeUrl(authCodeUrlParameters);
+      res.redirect(response);
+    } catch (error) {
+      console.error(error);
+      res.status(400).send('An error occurred during the Outlook authentication process.');
+    }
+  }
+
+  // Callback handler for successful Outlook authentication
+  async outlookAuthCallbackHandler(req, res) {
+    const tokenRequest = {
+      code: req.query.code,
+      scopes: this.config.scopes,
+      redirectUri: this.config.redirectUri,
+    };
+
+    try {
+      const response = await this.cca.acquireTokenByCode(tokenRequest);
+      const credential = await encryptCreds(response.accessToken);
+      await createJob("outlook-oauth", credential);
+      res.redirect(this.success_url);
+    } catch (error) {
+      res.status(400).send('Error occurred during Outlook authentication.');
+    }
+  }
+}
+```
+
+Then, you can kick off a remote scrape job like this:
+```javascript
 import OutlookOAuth from './OutlookOAuth.js';
-const outlookOAuth = new OutlookOAuth({
-  port: 3000,
-  msalConfig: {
-    auth: {
-      clientId: process.env.CLIENT_ID,
-      authority: 'https://login.microsoftonline.com/common',
-      clientSecret: process.env.CLIENT_SECRET,
-    },
-    system: {
-      loggerOptions: {
-        loggerCallback(loglevel, message, containsPii) {
-          console.log(message);
-        },
-        piiLoggingEnabled: false,
-        logLevel: 'Info',
-      },
-    },
-  },
-  scopes: ['user.read'],
-  redirectUri: 'http://localhost:3000/outlook-auth/callback',
+
+const outlookOAuthConfig = {
   authRoute: '/outlook-auth',
   callbackRoute: '/outlook-auth/callback',
-});
+  scopes: ['user.read'],
+  redirectUri: 'http://localhost:3000/outlook-auth/callback',
+  msalConfig: msalConfig,
+  port: port, 
+  success_url: success_url,
+};
+
+const outlookOAuth = new OutlookOAuth(app, outlookOAuthConfig);
+outlookOAuth.setupRoutes();
+```
+
+If you are working on a browser side application, you can set up a script tag like this once you get the access token, and utilize the BlinkReceiptJS.js file:
+```html
+<script>
+    function onLoad() {
+        if (BlinkReceiptJS.hasValidCredential()) {
+            BlinkReceiptJS.queueNewJob(userId);
+        } else {
+            //prompt user to give credentials
+        }
+    }
+    function onUserEnterIMAPCredentials(appPassword) {
+        BlinkReceiptJS.appPassword = appPassword;
+        BlinkReceiptJS.queueNewJob(userId);
+    }
+    function onUserEnterOauthCredentials(accessToken, expDate) {
+        BlinkReceiptJS.accessToken = accessToken;
+        BlinkReceiptJS.expDate = expDate;
+        BlinkReceiptJS.queueNewJob(userId);
+    }
+</script>
 ```
 
 
@@ -91,30 +153,137 @@ Next, choose which **Scope** you will use for user permission:
 - For instance, we used 'https://www.googleapis.com/auth/gmail.readonly'
 A full list can be found [here](https://developers.google.com/identity/protocols/oauth2/scopes). 
 
- Now, you can run the remote scrape by creating a googleOAuth object like so:
+If you are creating a server-side application, you can create a Google auth flow similar to this:
+```javascript
+class GmailOAuth {
+  constructor(app, config) {
+    this.config = config;
+    this.app = app;
+    this.oauth2Client = new google.auth.OAuth2(
+      this.config.client_id,
+      this.config.client_secret,
+      this.config.redirect_uris
+    );
+    this.success_url = this.config.success_url;
+  }
+
+  setupRoutes() {
+    this.app.get(this.config.authRoute, this.googleAuthHandler.bind(this));
+    this.app.get(this.config.callbackRoute, this.googleAuthCallbackHandler.bind(this));
+  }
+
+  // Route handler that redirects user to Google auth URL generated with OAuth2 client
+  googleAuthHandler(req, res) {
+    const url = this.oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: this.config.scope
+    });
+    res.redirect(url);
+  }
+
+  // Callback handler for successful Google authentication
+  async googleAuthCallbackHandler(req, res) {
+    const { code } = req.query;
+    try {
+        const { tokens } = await this.oauth2Client.getToken(code);
+        this.oauth2Client.setCredentials(tokens);
+  
+        const credential = await encryptCreds(tokens.access_token);
+        await createJob("gmail-oauth", credential);
+  
+        res.redirect(this.success_url);
+      } catch (error) {
+        res.status(400).send({ error: 'Authentication failed. Please try again.' });
+      }
+  }
+}
+```
+
+Then, you can kick off a remote scrape job like this:
 
 ```javascript
 import GmailOAuth from './GmailOAuth.js';
+const data = fs.readFileSync(path/to/key.json);
+const parsedData = JSON.parse(data);
+const clientId = parsedData.web.client_id;
+const clientSecret = parsedData.web.client_secret;
+const redirectUri = parsedData.web.redirect_uris[0];
 
-const gmailOAuth = new GmailOAuth({
-     port: 3000,
-     authRoute: '/my-google-auth',
-     callbackRoute: '/my-google-auth/callback',
-     credentialsPath: '/path/to/key.json',
-     scope: ['https://www.googleapis.com/auth/gmail.readonly']
-  });
-  
-gmailOAuth.initialize();
+const scopesgoogle = [
+  'https://mail.google.com/'
+];
+
+const googleOAuthConfig = {
+  authRoute: '/google-auth',
+  callbackRoute: '/google-auth/callback',
+  scope: scopesgoogle,
+  client_id: clientId,
+  client_secret: clientSecret,
+  redirect_uris: redirectUri,
+  port: port,
+  success_url: success_url,
+};
+
+const gmailOAuth = new GmailOAuth(app, googleOAuthConfig);
+gmailOAuth.setupRoutes(); 
 ```
+
+If you are working on a browser side application, you can set up a script tag like this once you get the access token, and utilize the BlinkReceiptJS.js file:
+```html
+<script>
+    function onLoad() {
+        if (BlinkReceiptJS.hasValidCredential()) {
+            BlinkReceiptJS.queueNewJob(userId);
+        } else {
+            //prompt user to give credentials
+        }
+    }
+    function onUserEnterIMAPCredentials(appPassword) {
+        BlinkReceiptJS.appPassword = appPassword;
+        BlinkReceiptJS.queueNewJob(userId);
+    }
+    function onUserEnterOauthCredentials(accessToken, expDate) {
+        BlinkReceiptJS.accessToken = accessToken;
+        BlinkReceiptJS.expDate = expDate;
+        BlinkReceiptJS.queueNewJob(userId);
+    }
+</script>
+```
+
 
 ## Setting Up Your Google IMAP Login
 
 Have users enable 2-Step verification at [Google's 2-Step Verification page](https://myaccount.google.com/signinoptions/two-step-verification/enroll-welcome) and generate a 16 digit app password at [Google's App Passwords page](https://myaccount.google.com/apppasswords). 
 
-Collect the user's email and app password and pass it into the GmailImap object like so:
+If you are creating a server-side application, you can create a IMAP flow like this:
 
 ```javascript
+class GmailImap {
+  constructor(config) {
+    this.config = config;
+  }
 
+  async initialize() {
+    const { email, password } = this.config;
+
+    try {
+      const credential = await encryptCreds(email + ":" + password);
+      await createJob("gmail-imap", credential);
+
+      // Return 200 to indicate success
+      return 200;
+    } catch (error) {
+      console.error("Error occurred during Google IMAP authentication and job creation: ", error);
+      
+      // Return 400 to indicate error
+      return 400;
+    }
+  }
+}
+```
+
+And pass in collected user email and app password:
+```javascript
 import GmailImap from './GmailImap.js';
 
 (async function() {
@@ -131,4 +300,26 @@ import GmailImap from './GmailImap.js';
     console.log('Error occurred during Google IMAP authentication and job creation.');
   }
 })();
+```
+
+If you are working on a browser side application, you can set up a script tag like this once you get the email and password, and utilize the BlinkReceiptJS.js file:
+```html
+<script>
+    function onLoad() {
+        if (BlinkReceiptJS.hasValidCredential()) {
+            BlinkReceiptJS.queueNewJob(userId);
+        } else {
+            //prompt user to give credentials
+        }
+    }
+    function onUserEnterIMAPCredentials(appPassword) {
+        BlinkReceiptJS.appPassword = appPassword;
+        BlinkReceiptJS.queueNewJob(userId);
+    }
+    function onUserEnterOauthCredentials(accessToken, expDate) {
+        BlinkReceiptJS.accessToken = accessToken;
+        BlinkReceiptJS.expDate = expDate;
+        BlinkReceiptJS.queueNewJob(userId);
+    }
+</script>
 ```
